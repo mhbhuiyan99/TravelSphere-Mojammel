@@ -2,13 +2,13 @@ package controllers
 
 import "TravelSphere-Mojammel/services"
 
-type ContryController struct {
+type CountryController struct {
 	BaseController
 }
 
 // Get renders the Country Explorer page with a default country list
 // @router /countries [get]
-func (c *ContryController) Get() {
+func (c *CountryController) Get() {
 	countries, err := services.GetAllCountries("", "")
 	if err != nil {
 		c.Data["Error"] = "Could not load countries. Please try again later."
