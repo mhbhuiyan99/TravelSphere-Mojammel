@@ -11,7 +11,7 @@ import (
 
 const restCountriesBase = "https://restcountries.com/v3.1"
 
-type currencyInfo struct {
+type currencyType struct {
 	Name string `json:"name"`
 }
 
@@ -29,7 +29,7 @@ type countryAPIResponse struct {
 		SVG string `json:"svg"`
 	} `json:"flags"`
 	Languages  map[string]string `json:"languages"`
-	Currencies map[string]currencyInfo `json:"currencies"`
+	Currencies map[string]currencyType `json:"currencies"`
 }
 
 // FetchAllCountries fetches every country from REST Countries API
@@ -122,7 +122,7 @@ func mapValues(m map[string]string) []string {
 	return val
 }
 
-func currencyNames(m map[string]currencyInfo) []string {
+func currencyNames(m map[string]currencyType) []string {
     names := make([]string, 0, len(m))
     for _, n := range m {
         names = append(names, n.Name)
