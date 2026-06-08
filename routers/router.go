@@ -2,6 +2,7 @@ package routers
 
 import (
 	"TravelSphere-Mojammel/controllers"
+	"TravelSphere-Mojammel/controllers/api"
 	"TravelSphere-Mojammel/filters"
 
 	beego "github.com/beego/beego/v2/server/web"
@@ -21,4 +22,8 @@ func init() {
 	beego.Router("/", &controllers.HomeController{})
 	beego.Router("/login", &controllers.AuthController{})
 	beego.Router("/logout", &controllers.LogoutController{})
+	beego.Router("/countries", &controllers.CountryController{})
+
+    // JSON API routes
+    beego.Router("/api/countries", &api.CountryAPIController{}, "get:GetAll")
 }

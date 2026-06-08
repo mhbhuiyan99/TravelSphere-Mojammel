@@ -9,7 +9,9 @@ import (
 	"strings"
 )
 
-const restCountriesBase = "https://restcountries.com/v3.1"
+func restCountriesBase() string {
+    return configOrDefault("restcountries_base_url", "https://restcountries.com/v3.1")
+}
 
 type currencyType struct {
 	Name string `json:"name"`
@@ -32,9 +34,34 @@ type countryAPIResponse struct {
 	Currencies map[string]currencyType `json:"currencies"`
 }
 
-// FetchAllCountries fetches every country from REST Countries API
+func fetchAllCountriesFromURL(url string) ([]models.Country, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response: %w", err)
+	}
+
+	var raw []countryAPIResponse
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+	return transformCountries(raw), nil
+}
+
+// FetchAllCountries is the public function used by services
 func FetchAllCountries() ([]models.Country, error) {
-	url := fmt.Sprintf("%s/all?fields=name,capital,population,region,subregion,flags,languages,currencies", restCountriesBase)
+    url := fmt.Sprintf("%s/all?fields=name,capital,population,region,subregion,flags,languages,currencies,latlng", restCountriesBase())
+    return fetchAllCountriesFromURL(url)
+}
+
+// FetchCountryByName fetches a single country by common name
+func FetchCountryByName(name string) (*models.Country, error) {
+	url := fmt.Sprintf("%s/name/%s?fullText=true&fields=name,capital,population,region,subregion,flags,languages,currencies,latlng", restCountriesBase(), name)
 
 	res, err := http.Get(url)
 	if err != nil {
@@ -42,34 +69,11 @@ func FetchAllCountries() ([]models.Country, error) {
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading country API response: %w", err)
-	}
-
-	var raw []countryAPIResponse
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("parsing country API response: %w", err)
-	}
-
-	return transformCountries(raw), nil
-}
-
-// FetchCountryByName fetches a single country by common name
-func FetchCountryByName(name string) (*models.Country, error) {
-	url := fmt.Sprintf("%s/name/%s?fullText=true&fields=name,capital,population,region,subregion,flags,languages,currencies", restCountriesBase, name)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("country API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	if res.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
