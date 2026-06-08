@@ -9,6 +9,10 @@ import (
 
 func init() {
 
+	// Loggin filter - global, runs on every request
+	beego.InsertFilter("/*", beego.BeforeExec, filters.LogginFilter)
+	beego.InsertFilter("/*", beego.AfterExec, filters.LogginAfterFilter)
+
 	// Auth filter - protects wishlist and dashboard
 	beego.InsertFilter("/wishlist", beego.BeforeExec, filters.AuthFilter)
 	beego.InsertFilter("/dashboard", beego.BeforeExec, filters.AuthFilter)
