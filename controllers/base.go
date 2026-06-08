@@ -9,6 +9,10 @@ type BaseController struct {
 
 // Prepare() runs before every Get()/Post() and sets *shared* template data
 func (c *BaseController) Prepare() {
+
+	// Set layout for all SSR page
+	c.Layout = "layouts/main.tpl" 
+
 	// Read session username - set by login, empty if not logged in
 	username := c.GetSession("username")
 

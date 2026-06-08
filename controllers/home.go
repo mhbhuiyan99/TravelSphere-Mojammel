@@ -8,5 +8,5 @@ type HomeController struct {
 // @router / [get]
 func (c *HomeController) Get() {
 	c.Data["Title"] = "TravelSphere"
-	c.TplName = "page/home.tpl"
+	c.TplName = "pages/home.tpl"
 }
