@@ -70,8 +70,42 @@ Visit **http://localhost:8080**
 
 ### 6. Run Tests
 
+**All packages:**
 ```bash
 go test ./...
+```
+
+**All packages with coverage:**
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+```
+
+**Single folder (by package path):**
+```bash
+# utils only
+go test ./utils/...
+
+# services only
+go test ./services/...
+
+# controllers/api only
+go test ./controllers/api/...
+```
+
+**Single folder with coverage:**
+```bash
+# utils
+go test ./utils/... -coverprofile=coverage.out && go tool cover -func=coverage.out
+
+# services
+go test ./services/... -coverprofile=coverage.out && go tool cover -func=coverage.out
+```
+
+**Verbose output (see each test name):**
+```bash
+go test ./utils/... -v
+go test ./services/... -v
 ```
 
 With coverage:
