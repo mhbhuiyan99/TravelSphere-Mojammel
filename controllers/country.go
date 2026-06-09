@@ -20,3 +20,27 @@ func (c *CountryController) Get() {
 	c.Data["Title"] = "Country Explorer"
 	c.TplName = "pages/countries.tpl"
 }
+
+// Detail renders the destination detail page
+// @router /countries/:slug [get]
+func (c *CountryController) Detail() {
+	slug := c.Ctx.Input.Param(":slug")
+
+	country, err := services.GetCountryBySlug(slug)
+	if err != nil || country == nil {
+		c.Ctx.Output.SetStatus(404)
+		c.Data["Title"] = "Not Found"
+		c.TplName = "pages/404.tpl"
+		return
+	}
+
+	attractions, err := services.GetAttractionsByCoords(country.Lat, country.Lon)
+	if err != nil {
+		attractions = nil 
+	}
+
+	c.Data["Country"] = country
+	c.Data["Attractions"] = attractions
+	c.Data["Title"] = country.Name
+	c.TplName = "pages/destination.tpl"
+}
