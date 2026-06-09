@@ -2,6 +2,7 @@ package api
 
 import (
 	"TravelSphere-Mojammel/services"
+	"encoding/json"
 
 	beego "github.com/beego/beego/v2/server/web"
 )
@@ -50,7 +51,16 @@ func (c *WishlistAPIController) Create() {
 	var body struct {
 		CountryName string `json:"country_name"`
 	}
-	if err := c.BindJSON(&body); err != nil || body.CountryName == "" {
+
+	// Beego v2 — read raw body and unmarshal manually
+	if err := json.Unmarshal(c.Ctx.Input.RequestBody, &body); err != nil {
+		c.Ctx.Output.SetStatus(400)
+		c.Data["json"] = map[string]interface{}{"success": false, "message": "invalid request body"}
+		c.ServeJSON()
+		return
+	}
+
+	if body.CountryName == "" {
 		c.Ctx.Output.SetStatus(400)
 		c.Data["json"] = map[string]interface{}{"success": false, "message": "country_name required"}
 		c.ServeJSON()
@@ -82,11 +92,13 @@ func (c *WishlistAPIController) Update() {
 	}
 
 	id := c.Ctx.Input.Param(":id")
+
 	var body struct {
 		Note   string `json:"note"`
 		Status string `json:"status"`
 	}
-	if err := c.BindJSON(&body); err != nil {
+
+	if err := json.Unmarshal(c.Ctx.Input.RequestBody, &body); err != nil {
 		c.Ctx.Output.SetStatus(400)
 		c.Data["json"] = map[string]interface{}{"success": false, "message": "invalid request body"}
 		c.ServeJSON()

@@ -19,15 +19,15 @@ func GetWishlist(username string) []models.WishlistItem {
     storeMu.RLock()
     defer storeMu.RUnlock()
 
-    items := store[username]
+    //items := store[username]
 
 	// Don't returns the actual slice stored in memory [ex: return store[username]]
 	// Because otherwise a caller could modify your internal store accidentally
 
-    result := make([]models.WishlistItem, len(items))
-    copy(result, items)
+    //result := make([]models.WishlistItem, len(items))
+    //copy(result, items)
 
-    return result
+    return store[username]
 }
 
 // AddToWishlist creates a new wishlist entry for a user
