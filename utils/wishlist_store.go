@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"path/filepath"
 
 	"TravelSphere-Mojammel/models"
 
@@ -14,13 +15,14 @@ import (
 var fileMu sync.RWMutex
 
 func storePath() string {
-	path, _ := beego.AppConfig.String("wishlist_store_path")
-	if path == "" {
+	val, err := beego.AppConfig.String("wishlist_store_path")
+	if err != nil || val == "" {
 		return "data/wishlist.json"
 	}
-	return path
+	return val
 }
 
+// readStoreFromPath is the testable core
 func readStoreFromPath(path string) (map[string][]models.WishlistItem, error) {
 	fileMu.RLock()
 	defer fileMu.RUnlock()
@@ -40,9 +42,15 @@ func readStoreFromPath(path string) (map[string][]models.WishlistItem, error) {
 	return store, nil
 }
 
+// writeStoreToPath is the testable core
 func writeStoreToPath(path string, store map[string][]models.WishlistItem) error {
 	fileMu.Lock()
 	defer fileMu.Unlock()
+
+	// ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("creating store directory: %w", err)
+	}
 
 	data, err := json.MarshalIndent(store, "", "  ")
 	if err != nil {
@@ -59,4 +67,14 @@ func ReadStore() (map[string][]models.WishlistItem, error) {
 // WriteStore is the public function used by services
 func WriteStore(store map[string][]models.WishlistItem) error {
 	return writeStoreToPath(storePath(), store)
+}
+
+// ReadStoreFromPath exported for service-level test injection
+func ReadStoreFromPath(path string) (map[string][]models.WishlistItem, error) {
+	return readStoreFromPath(path)
+}
+
+// WriteStoreToPath exported for service-level test injection
+func WriteStoreToPath(path string, store map[string][]models.WishlistItem) error {
+	return writeStoreToPath(path, store)
 }

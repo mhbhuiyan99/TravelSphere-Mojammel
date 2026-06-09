@@ -93,7 +93,7 @@ func TestFetchAllCountries_MockServer(t *testing.T) {
 	}))
 	defer server.Close()
 
-	countries, err := fetchAllCountriesFromURL(server.URL)
+	countries, err := FetchAllCountriesFromURL(server.URL)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

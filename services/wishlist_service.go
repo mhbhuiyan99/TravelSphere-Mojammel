@@ -9,9 +9,27 @@ import (
 	"TravelSphere-Mojammel/utils"
 )
 
+// testStorePath allows tests to inject a temp file path.
+// Empty string means use the default from config.
+var testStorePath = ""
+
+func readStore() (map[string][]models.WishlistItem, error) {
+	if testStorePath != "" {
+		return utils.ReadStoreFromPath(testStorePath)
+	}
+	return utils.ReadStore()
+}
+
+func writeStore(store map[string][]models.WishlistItem) error {
+	if testStorePath != "" {
+		return utils.WriteStoreToPath(testStorePath, store)
+	}
+	return utils.WriteStore(store)
+}
+
 // GetWishlist returns all wishlist items for a user
 func GetWishlist(username string) []models.WishlistItem {
-	store, err := utils.ReadStore()
+	store, err := readStore()
 	if err != nil {
 		return []models.WishlistItem{}
 	}
@@ -31,7 +49,7 @@ func AddToWishlist(username, countryName string) (models.WishlistItem, error) {
 		return models.WishlistItem{}, errors.New("country name required")
 	}
 
-	store, err := utils.ReadStore()
+	store, err := readStore()
 	if err != nil {
 		return models.WishlistItem{}, fmt.Errorf("loading store: %w", err)
 	}
@@ -46,7 +64,7 @@ func AddToWishlist(username, countryName string) (models.WishlistItem, error) {
 
 	store[username] = append(store[username], item)
 
-	if err := utils.WriteStore(store); err != nil {
+	if err := writeStore(store); err != nil {
 		return models.WishlistItem{}, fmt.Errorf("saving store: %w", err)
 	}
 	return item, nil
@@ -58,7 +76,7 @@ func UpdateWishlistItem(username, id, note, status string) error {
 		return fmt.Errorf("invalid status %q: must be Planned or Visited", status)
 	}
 
-	store, err := utils.ReadStore()
+	store, err := readStore()
 	if err != nil {
 		return fmt.Errorf("loading store: %w", err)
 	}
@@ -71,7 +89,7 @@ func UpdateWishlistItem(username, id, note, status string) error {
 		if item.ID == id {
 			store[username][i].Note = note
 			store[username][i].Status = status
-			return utils.WriteStore(store)
+			return writeStore(store)
 		}
 	}
 	return fmt.Errorf("item %q not found", id)
@@ -79,7 +97,7 @@ func UpdateWishlistItem(username, id, note, status string) error {
 
 // DeleteWishlistItem removes an item and persists the change
 func DeleteWishlistItem(username, id string) error {
-	store, err := utils.ReadStore()
+	store, err := readStore()
 	if err != nil {
 		return fmt.Errorf("loading store: %w", err)
 	}
@@ -91,7 +109,7 @@ func DeleteWishlistItem(username, id string) error {
 	for i, item := range items {
 		if item.ID == id {
 			store[username] = append(items[:i], items[i+1:]...)
-			return utils.WriteStore(store)
+			return writeStore(store)
 		}
 	}
 	return fmt.Errorf("item %q not found", id)

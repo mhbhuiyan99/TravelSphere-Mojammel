@@ -1,0 +1,10 @@
+appname = TravelSphere
+httpport = 8080
+runmode = dev
+sessionon = true
+sessionname = travelsphere_session
+opentripmap_api_key = YOUR_KEY_HERE
+wishlist_store_path = data/wishlist.json
+restcountries_base_url = https://restcountries.com/v3.1
+opentripmap_base_url   = https://api.opentripmap.com/0.1/en/places
+EnableDocs = true

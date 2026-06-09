@@ -35,7 +35,7 @@ type countryAPIResponse struct {
 	Latlng []float64 `json:"latlng"`
 }
 
-func fetchAllCountriesFromURL(url string) ([]models.Country, error) {
+func FetchAllCountriesFromURL(url string) ([]models.Country, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
@@ -57,7 +57,7 @@ func fetchAllCountriesFromURL(url string) ([]models.Country, error) {
 // FetchAllCountries is the public function used by services
 func FetchAllCountries() ([]models.Country, error) {
     url := fmt.Sprintf("%s/all?fields=name,capital,population,region,subregion,flags,languages,currencies,latlng", restCountriesBase())
-    return fetchAllCountriesFromURL(url)
+    return FetchAllCountriesFromURL(url)
 }
 
 // FetchCountryByName fetches a single country by common name
