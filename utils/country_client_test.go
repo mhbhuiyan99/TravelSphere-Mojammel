@@ -1,6 +1,11 @@
 package utils
 
-import "testing"
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestTransformCountries(t *testing.T) {
 	tests := []struct {
@@ -72,9 +77,8 @@ func TestTransformCountries(t *testing.T) {
 	}
 }
 
-/*
 func TestFetchAllCountries_MockServer(t *testing.T) {
-	mockData := []countryAPIResponse{
+	mockData := []countryAPIResponse {
 		{
 			Name:       struct{ Common string `json:"common"` }{Common: "Bangladesh"},
 			Capital:    []string{"Dhaka"},
@@ -90,6 +94,7 @@ func TestFetchAllCountries_MockServer(t *testing.T) {
 	defer server.Close()
 
 	countries, err := fetchAllCountriesFromURL(server.URL)
+
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,5 +104,5 @@ func TestFetchAllCountries_MockServer(t *testing.T) {
 	if countries[0].Name != "Bangladesh" {
 		t.Errorf("got %q, want Bangladesh", countries[0].Name)
 	}
+
 }
-*/
