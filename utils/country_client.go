@@ -32,6 +32,7 @@ type countryAPIResponse struct {
 	} `json:"flags"`
 	Languages  map[string]string `json:"languages"`
 	Currencies map[string]currencyType `json:"currencies"`
+	Latlng []float64 `json:"latlng"`
 }
 
 func fetchAllCountriesFromURL(url string) ([]models.Country, error) {
@@ -91,7 +92,7 @@ func FetchCountryByName(name string) (*models.Country, error) {
 func transformCountries(raw []countryAPIResponse) []models.Country {
 	countries := make([]models.Country, 0, len(raw))
 	for _, r := range raw {
-		countries = append(countries, models.Country{
+		c := models.Country{
 			Name:       r.Name.Common,
 			Slug:       toSlug(r.Name.Common),
 			Capital:    firstOrEmpty(r.Capital),
@@ -101,7 +102,13 @@ func transformCountries(raw []countryAPIResponse) []models.Country {
 			Flag:       r.Flags.SVG,
 			Languages:  mapValues(r.Languages),
 			Currencies: currencyNames(r.Currencies),
-		})
+		}
+		if len(r.Latlng) == 2 {
+			c.Lat = r.Latlng[0]
+			c.Lon = r.Latlng[1]
+		}
+
+		countries = append(countries, c)
 	}
 	return countries
 }
