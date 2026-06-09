@@ -1,4 +1,6 @@
 *.exe 
 *.out
 
-data/wishlist.jsonconf/
+data/wishlist.json
+
+conf/
