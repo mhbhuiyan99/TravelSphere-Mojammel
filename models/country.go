@@ -10,4 +10,6 @@ type Country struct {
 	Flag string // URL to flag image (SVG)
 	Languages []string
 	Currencies []string
+	Lat float64
+	Lon float64
 }
