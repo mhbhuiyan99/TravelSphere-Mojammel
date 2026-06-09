@@ -27,4 +27,8 @@ func init() {
     // JSON API routes
     beego.Router("/api/countries", &api.CountryAPIController{}, "get:GetAll")
 	beego.Router("/countries/:slug", &controllers.CountryController{}, "get:Detail")
+
+	// Wishlist API
+	beego.Router("/api/wishlist", &api.WishlistAPIController{}, "get:GetAll;post:Create")
+	beego.Router("/api/wishlist/:id", &api.WishlistAPIController{}, "put:Update;delete:Delete")
 }
