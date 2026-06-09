@@ -126,3 +126,35 @@ func (c *WishlistAPIController) Delete() {
 	c.Data["json"] = map[string]interface{}{"success": true, "message": "deleted"}
 	c.ServeJSON()
 }
+
+// Summary returns wishlist counts for AJAX dashboard refresh
+// @router /api/dashboard/summary [get]
+func (c *WishlistAPIController) Summary() {
+	user := c.username()
+	if user == "" {
+		c.Ctx.Output.SetStatus(401)
+		c.Data["json"] = map[string]interface{}{"success": false, "message": "not authenticated"}
+		c.ServeJSON()
+		return
+	}
+
+	items := services.GetWishlist(user)
+	planned, visited := 0, 0
+	for _, item := range items {
+		if item.Status == "Visited" {
+			visited++
+		} else {
+			planned++
+		}
+	}
+
+	c.Data["json"] = map[string]interface{}{
+		"success": true,
+		"data": map[string]int{
+			"total":   len(items),
+			"planned": planned,
+			"visited": visited,
+		},
+	}
+	c.ServeJSON()
+}

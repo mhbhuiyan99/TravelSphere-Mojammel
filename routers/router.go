@@ -31,4 +31,8 @@ func init() {
 	// Wishlist API
 	beego.Router("/api/wishlist", &api.WishlistAPIController{}, "get:GetAll;post:Create")
 	beego.Router("/api/wishlist/:id", &api.WishlistAPIController{}, "put:Update;delete:Delete")
+
+	beego.Router("/wishlist", &controllers.WishlistController{})
+	beego.Router("/dashboard", &controllers.DashboardController{})
+	beego.Router("/api/dashboard/summary", &api.WishlistAPIController{}, "get:Summary")
 }
