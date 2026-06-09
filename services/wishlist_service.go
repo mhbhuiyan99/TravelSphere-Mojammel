@@ -1,36 +1,28 @@
 package services
 
 import (
-	"TravelSphere-Mojammel/models"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
-)
 
-// store holds wishlists keyed by username - resets on server restart
-var (
-	store = map[string][]models.WishlistItem{}
-	storeMu sync.RWMutex
+	"TravelSphere-Mojammel/models"
+	"TravelSphere-Mojammel/utils"
 )
 
 // GetWishlist returns all wishlist items for a user
 func GetWishlist(username string) []models.WishlistItem {
-    storeMu.RLock()
-    defer storeMu.RUnlock()
-
-    //items := store[username]
-
-	// Don't returns the actual slice stored in memory [ex: return store[username]]
-	// Because otherwise a caller could modify your internal store accidentally
-
-    //result := make([]models.WishlistItem, len(items))
-    //copy(result, items)
-
-    return store[username]
+	store, err := utils.ReadStore()
+	if err != nil {
+		return []models.WishlistItem{}
+	}
+	items, ok := store[username]
+	if !ok {
+		return []models.WishlistItem{}
+	}
+	return items
 }
 
-// AddToWishlist creates a new wishlist entry for a user
+// AddToWishlist creates a new wishlist entry and persists it
 func AddToWishlist(username, countryName string) (models.WishlistItem, error) {
 	if username == "" {
 		return models.WishlistItem{}, errors.New("username required")
@@ -39,18 +31,25 @@ func AddToWishlist(username, countryName string) (models.WishlistItem, error) {
 		return models.WishlistItem{}, errors.New("country name required")
 	}
 
-	items := models.WishlistItem{
-		ID: fmt.Sprintf("%d", time.Now().UnixNano()),
-		CountryName: countryName,
-		Note: "",
-		Status: "Planned",
-		CreatedAt: time.Now().UTC(),
+	store, err := utils.ReadStore()
+	if err != nil {
+		return models.WishlistItem{}, fmt.Errorf("loading store: %w", err)
 	}
 
-	storeMu.Lock()
-	defer storeMu.Unlock()
-	store[username] = append(store[username], items)
-	return items, nil
+	item := models.WishlistItem{
+		ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+		CountryName: countryName,
+		Note:        "",
+		Status:      "Planned",
+		CreatedAt:   time.Now().UTC(),
+	}
+
+	store[username] = append(store[username], item)
+
+	if err := utils.WriteStore(store); err != nil {
+		return models.WishlistItem{}, fmt.Errorf("saving store: %w", err)
+	}
+	return item, nil
 }
 
 // UpdateWishlistItem updates note and status for a specific item
@@ -59,29 +58,31 @@ func UpdateWishlistItem(username, id, note, status string) error {
 		return fmt.Errorf("invalid status %q: must be Planned or Visited", status)
 	}
 
-	storeMu.Lock()
-	defer storeMu.Unlock()
+	store, err := utils.ReadStore()
+	if err != nil {
+		return fmt.Errorf("loading store: %w", err)
+	}
 
 	items, ok := store[username]
 	if !ok {
-		return errors.New("Wishlist not found")
+		return errors.New("wishlist not found")
 	}
-
 	for i, item := range items {
 		if item.ID == id {
 			store[username][i].Note = note
 			store[username][i].Status = status
-			return nil
+			return utils.WriteStore(store)
 		}
 	}
 	return fmt.Errorf("item %q not found", id)
 }
 
-
-// DeleteWishlistItem removes an item from a user's wishlist
+// DeleteWishlistItem removes an item and persists the change
 func DeleteWishlistItem(username, id string) error {
-	storeMu.Lock()
-	defer storeMu.Unlock()
+	store, err := utils.ReadStore()
+	if err != nil {
+		return fmt.Errorf("loading store: %w", err)
+	}
 
 	items, ok := store[username]
 	if !ok {
@@ -90,7 +91,7 @@ func DeleteWishlistItem(username, id string) error {
 	for i, item := range items {
 		if item.ID == id {
 			store[username] = append(items[:i], items[i+1:]...)
-			return nil
+			return utils.WriteStore(store)
 		}
 	}
 	return fmt.Errorf("item %q not found", id)

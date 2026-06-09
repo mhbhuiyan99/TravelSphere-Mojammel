@@ -2,13 +2,12 @@ package services
 
 import (
 	"TravelSphere-Mojammel/models"
+	"TravelSphere-Mojammel/utils"
 	"testing"
 )
 
 func resetStore() {
-	storeMu.Lock()
-	defer storeMu.Unlock()
-	store = map[string][]models.WishlistItem{}
+	utils.WriteStore(map[string][]models.WishlistItem{})
 }
 
 func TestAddWishlist(t *testing.T) {
