@@ -14,7 +14,8 @@ Browse countries, explore attractions, and manage a personal travel wishlist.
 ```bash
   go install github.com/beego/bee/v2@latest
 ```
-- An OpenTripMap API key — get one free at https://opentripmap.io/
+- REST Countries v5 API key — get one free at https://restcountries.com/sign-up
+- OpenTripMap API key — get one free at https://opentripmap.io/
 
 ---
 
@@ -38,7 +39,8 @@ cp conf/app.conf.example conf/app.conf
 Open `conf/app.conf` and set your key:
 
 ```ini
-opentripmap_api_key = YOUR_KEY_HERE
+restcountries_api_key  = YOUR_RESTCOUNTRIES_KEY_HERE
+opentripmap_api_key    = YOUR_OPENTRIPMAP_KEY_HERE
 ```
 
 **Wishlist data directory:**
@@ -88,9 +90,6 @@ go test ./utils/...
 
 # services only
 go test ./services/...
-
-# controllers/api only
-go test ./controllers/api/...
 ```
 
 **Single folder with coverage:**
