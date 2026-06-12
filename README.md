@@ -22,7 +22,7 @@ Browse countries, explore attractions, and manage a personal travel wishlist.
 ### 2. Clone the project
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/TravelSphere-Mojammel.git
+git clone https://github.com/mhbhuiyan99/TravelSphere-Mojammel.git
 cd TravelSphere-Mojammel
 ```
 
