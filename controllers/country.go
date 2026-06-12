@@ -1,6 +1,9 @@
 package controllers
 
-import "TravelSphere-Mojammel/services"
+import (
+	"TravelSphere-Mojammel/services"
+	"github.com/beego/beego/v2/core/logs" 
+)
 
 type CountryController struct {
 	BaseController
@@ -11,6 +14,7 @@ type CountryController struct {
 func (c *CountryController) Get() {
 	countries, err := services.GetAllCountries("", "")
 	if err != nil {
+		logs.Error("GetAllCountries error:", err)
 		c.Data["Error"] = "Could not load countries. Please try again later."
 		c.Data["Countries"] = nil
 	} else {

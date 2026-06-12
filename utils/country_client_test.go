@@ -18,22 +18,25 @@ func mockCountryServer(t *testing.T, data interface{}) *httptest.Server {
 
 func TestTransformCountries(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     []countryAPIResponse
-		wantName  string
-		wantSlug  string
-		wantCap   string
-		wantLat   float64
-		wantLon   float64
+		name     string
+		input    []countryAPIResponse
+		wantName string
+		wantSlug string
+		wantCap  string
+		wantLat  float64
+		wantLon  float64
 	}{
 		{
 			name: "normal country with coords",
 			input: []countryAPIResponse{{
-				Name:       struct{ Common string `json:"common"` }{Common: "United States"},
-				Capital:    []string{"Washington D.C."},
+				Names:    struct{ Common string `json:"common"` }{Common: "United States"},
+				Capitals: []struct{ Name string `json:"name"` }{{Name: "Washington D.C."}},
 				Population: 331000000,
 				Region:     "Americas",
-				Latlng:     []float64{38.0, -97.0},
+				Coordinates: struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				}{Lat: 38.0, Lng: -97.0},
 			}},
 			wantName: "United States",
 			wantSlug: "united-states",
@@ -44,9 +47,8 @@ func TestTransformCountries(t *testing.T) {
 		{
 			name: "country without coords defaults to zero",
 			input: []countryAPIResponse{{
-				Name:    struct{ Common string `json:"common"` }{Common: "Antarctica"},
-				Capital: []string{},
-				Latlng:  []float64{},
+				Names:    struct{ Common string `json:"common"` }{Common: "Antarctica"},
+				Capitals: []struct{ Name string `json:"name"` }{},
 			}},
 			wantName: "Antarctica",
 			wantSlug: "antarctica",
@@ -57,8 +59,11 @@ func TestTransformCountries(t *testing.T) {
 		{
 			name: "country name with spaces slugified correctly",
 			input: []countryAPIResponse{{
-				Name:   struct{ Common string `json:"common"` }{Common: "New Zealand"},
-				Latlng: []float64{-41.0, 174.0},
+				Names: struct{ Common string `json:"common"` }{Common: "New Zealand"},
+				Coordinates: struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				}{Lat: -41.0, Lng: 174.0},
 			}},
 			wantName: "New Zealand",
 			wantSlug: "new-zealand",
@@ -162,12 +167,13 @@ func TestMapValues(t *testing.T) {
 func TestCurrencyNames(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     map[string]currencyType
+		input     []currencyType
 		wantCount int
 	}{
-		{"single currency", map[string]currencyType{"BDT": {Name: "Bangladeshi taka"}}, 1},
-		{"multiple currencies", map[string]currencyType{"USD": {Name: "US Dollar"}, "EUR": {Name: "Euro"}}, 2},
-		{"empty map", map[string]currencyType{}, 0},
+		{"single currency", []currencyType{{Code: "BDT", Name: "Bangladeshi taka"}}, 1},
+		{"multiple currencies", []currencyType{{Code: "USD", Name: "US Dollar"}, {Code: "EUR", Name: "Euro"}}, 2},
+		{"empty name skipped", []currencyType{{Code: "XXX", Name: ""}}, 0},
+		{"empty slice", []currencyType{}, 0},
 	}
 
 	for _, tt := range tests {
@@ -188,21 +194,31 @@ func TestFetchAllCountriesFromURL(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "valid response returns countries",
+			name: "valid v5 response returns countries",
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				data := []countryAPIResponse{
-					{Name: struct{ Common string `json:"common"` }{Common: "Bangladesh"}, Capital: []string{"Dhaka"}, Latlng: []float64{24.0, 90.0}},
-					{Name: struct{ Common string `json:"common"` }{Common: "France"}, Capital: []string{"Paris"}, Latlng: []float64{46.0, 2.0}},
+				resp := v5Response{}
+				resp.Data.Objects = []countryAPIResponse{
+					{
+						Names:    struct{ Common string `json:"common"` }{Common: "Bangladesh"},
+						Capitals: []struct{ Name string `json:"name"` }{{Name: "Dhaka"}},
+					},
+					{
+						Names:    struct{ Common string `json:"common"` }{Common: "France"},
+						Capitals: []struct{ Name string `json:"name"` }{{Name: "Paris"}},
+					},
 				}
-				json.NewEncoder(w).Encode(data)
+				resp.Data.Meta.More = false
+				json.NewEncoder(w).Encode(resp)
 			},
 			wantCount: 2,
 			wantErr:   false,
 		},
 		{
-			name: "empty array returns empty slice",
+			name: "empty objects returns empty slice",
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("[]"))
+				resp := v5Response{}
+				resp.Data.Meta.More = false
+				json.NewEncoder(w).Encode(resp)
 			},
 			wantCount: 0,
 			wantErr:   false,
@@ -245,7 +261,7 @@ func TestFetchAllCountriesFromURL_ServerError(t *testing.T) {
 func TestRestCountriesBase(t *testing.T) {
 	t.Run("returns fallback when config not set", func(t *testing.T) {
 		got := restCountriesBase()
-		want := "https://restcountries.com/v3.1"
+		want := "https://api.restcountries.com/countries/v5"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -264,14 +280,17 @@ func TestRestCountriesBase(t *testing.T) {
 func TestFetchAllCountries_UsesConfigURL(t *testing.T) {
 	t.Run("FetchAllCountries calls through to real URL function", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			data := []countryAPIResponse{
-				{
-					Name:    struct{ Common string `json:"common"` }{Common: "Bangladesh"},
-					Capital: []string{"Dhaka"},
-					Latlng:  []float64{24.0, 90.0},
-				},
-			}
-			json.NewEncoder(w).Encode(data)
+			resp := v5Response{}
+			resp.Data.Objects = []countryAPIResponse{{
+				Names:    struct{ Common string `json:"common"` }{Common: "Bangladesh"},
+				Capitals: []struct{ Name string `json:"name"` }{{Name: "Dhaka"}},
+				Coordinates: struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				}{Lat: 24.0, Lng: 90.0},
+			}}
+			resp.Data.Meta.More = false
+			json.NewEncoder(w).Encode(resp)
 		}))
 		defer server.Close()
 

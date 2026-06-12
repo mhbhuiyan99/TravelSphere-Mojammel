@@ -10,104 +10,168 @@ import (
 )
 
 func restCountriesBase() string {
-    return configOrDefault("restcountries_base_url", "https://restcountries.com/v3.1")
+	return configOrDefault("restcountries_base_url", "https://api.restcountries.com/countries/v5")
+}
+
+func restCountriesAPIKey() string {
+	return configOrDefault("restcountries_api_key", "")
 }
 
 type currencyType struct {
+	Code string `json:"code"`
 	Name string `json:"name"`
 }
 
-// countryAPIResponse maps the REST Countries JSON shape
-type countryAPIResponse struct {
-	Name struct {
-		Common string `json:"common"`
-	} `json:"name"`
-	Capital    []string `json:"capital"`
-	Population int64    `json:"population"`
-	Region     string   `json:"region"`
-	Subregion  string   `json:"subregion"`
-	Flags      struct {
-		PNG string `json:"png"`
-		SVG string `json:"svg"`
-	} `json:"flags"`
-	Languages  map[string]string `json:"languages"`
-	Currencies map[string]currencyType `json:"currencies"`
-	Latlng []float64 `json:"latlng"`
+// v5 wraps all responses under data.objects + data.meta
+type v5Response struct {
+	Data struct {
+		Objects []countryAPIResponse `json:"objects"`
+		Meta    struct {
+			More bool `json:"more"`
+		} `json:"meta"`
+	} `json:"data"`
 }
 
-func FetchAllCountriesFromURL(url string) ([]models.Country, error) {
-	resp, err := http.Get(url)
+// countryAPIResponse maps the REST Countries v5 JSON shape
+type countryAPIResponse struct {
+	Names struct {
+		Common string `json:"common"`
+	} `json:"names"`
+	Capitals []struct {
+		Name string `json:"name"`
+	} `json:"capitals"`
+	Population int64  `json:"population"`
+	Region     string `json:"region"`
+	Subregion  string `json:"subregion"`
+	Flag       struct {
+		URLSvg string `json:"url_svg"`
+		URLPng string `json:"url_png"`
+	} `json:"flag"`
+	Languages []struct {
+		Name string `json:"name"`
+	} `json:"languages"`
+	Currencies  []currencyType `json:"currencies"` 
+	Coordinates struct {
+		Lat float64 `json:"lat"`
+		Lng float64 `json:"lng"`
+	} `json:"coordinates"`
+}
+
+// doAuthedGet makes an authenticated GET to v5 API
+func doAuthedGet(url string) ([]byte, int, error) {
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	if key := restCountriesAPIKey(); key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+	}
+	return body, resp.StatusCode, nil
+}
+
+// fetchPageFromURL fetches one page — testable core used by FetchAllCountriesFromURL
+func fetchPageFromURL(url string) ([]countryAPIResponse, bool, error) {
+	body, status, err := doAuthedGet(url)
+	if err != nil {
+		return nil, false, err
+	}
+	if status != http.StatusOK {
+		return nil, false, fmt.Errorf("API returned status %d", status)
 	}
 
-	var raw []countryAPIResponse
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+	var result v5Response
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, false, fmt.Errorf("parsing response: %w", err)
 	}
-	return transformCountries(raw), nil
+	return result.Data.Objects, result.Data.Meta.More, nil
+}
+
+// FetchAllCountriesFromURL fetches all pages from a base URL — exported for tests
+func FetchAllCountriesFromURL(baseURL string) ([]models.Country, error) {
+	all := make([]countryAPIResponse, 0)
+	limit := 100
+	offset := 0
+	fields := "response_fields=names.common,capitals,population,region,subregion,flag.url_svg,flag.url_png,languages,currencies,coordinates.lat,coordinates.lng"
+
+	for {
+		url := fmt.Sprintf("%s?%s&limit=%d&offset=%d", baseURL, fields, limit, offset)
+		objects, more, err := fetchPageFromURL(url)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, objects...)
+		if !more {
+			break
+		}
+		offset += limit
+	}
+	return transformCountries(all), nil
 }
 
 // FetchAllCountries is the public function used by services
 func FetchAllCountries() ([]models.Country, error) {
-    url := fmt.Sprintf("%s/all?fields=name,capital,population,region,subregion,flags,languages,currencies,latlng", restCountriesBase())
-    return FetchAllCountriesFromURL(url)
+	return FetchAllCountriesFromURL(restCountriesBase())
 }
 
 // FetchCountryByName fetches a single country by common name
 func FetchCountryByName(name string) (*models.Country, error) {
-	url := fmt.Sprintf("%s/name/%s?fullText=true&fields=name,capital,population,region,subregion,flags,languages,currencies,latlng", restCountriesBase(), name)
+	encoded := strings.ReplaceAll(name, " ", "+")
+	url := fmt.Sprintf("%s/names.common/%s", restCountriesBase(), encoded)
 
-	res, err := http.Get(url)
+	body, status, err := doAuthedGet(url)
 	if err != nil {
-		return nil, fmt.Errorf("country API request failed: %w", err)
+		return nil, err
 	}
-	defer res.Body.Close()
+	if status == http.StatusNotFound {
+		return nil, nil
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", status)
+	}
 
-	if res.StatusCode == http.StatusNotFound {
+	var result v5Response
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+	if len(result.Data.Objects) == 0 {
 		return nil, nil
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
-	}
-
-	var raw []countryAPIResponse
-	if err := json.Unmarshal(body, &raw); err != nil || len(raw) == 0 {
-		return nil, fmt.Errorf("parsing response: %w", err)
-	}
-
-	countries := transformCountries(raw)
+	countries := transformCountries(result.Data.Objects)
 	return &countries[0], nil
 }
 
-// transformCountries converts raw API response into our domain models
+// transformCountries converts raw v5 objects into domain models
 func transformCountries(raw []countryAPIResponse) []models.Country {
 	countries := make([]models.Country, 0, len(raw))
 	for _, r := range raw {
 		c := models.Country{
-			Name:       r.Name.Common,
-			Slug:       toSlug(r.Name.Common),
-			Capital:    firstOrEmpty(r.Capital),
+			Name:       r.Names.Common,
+			Slug:       toSlug(r.Names.Common),
+			Capital:    firstCapitalName(r.Capitals),
 			Population: r.Population,
 			Region:     r.Region,
 			Subregion:  r.Subregion,
-			Flag:       r.Flags.SVG,
-			Languages:  mapValues(r.Languages),
+			Flag:       r.Flag.URLSvg,
+			Languages:  languageNames(r.Languages),
 			Currencies: currencyNames(r.Currencies),
+			Lat:        r.Coordinates.Lat,
+			Lon:        r.Coordinates.Lng,
 		}
-		if len(r.Latlng) == 2 {
-			c.Lat = r.Latlng[0]
-			c.Lon = r.Latlng[1]
+		if c.Flag == "" {
+			c.Flag = r.Flag.URLPng // fallback to PNG if SVG missing
 		}
-
 		countries = append(countries, c)
 	}
 	return countries
@@ -117,6 +181,40 @@ func toSlug(name string) string {
 	return strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 }
 
+// firstCapitalName extracts name from the first capital object
+func firstCapitalName(capitals []struct {
+	Name string `json:"name"`
+}) string {
+	if len(capitals) > 0 {
+		return capitals[0].Name
+	}
+	return ""
+}
+
+// languageNames extracts names from v5 languages array
+func languageNames(langs []struct {
+	Name string `json:"name"`
+}) []string {
+	names := make([]string, 0, len(langs))
+	for _, l := range langs {
+		if l.Name != "" {
+			names = append(names, l.Name)
+		}
+	}
+	return names
+}
+
+func currencyNames(currencies []currencyType) []string {
+	names := make([]string, 0, len(currencies))
+	for _, c := range currencies {
+		if c.Name != "" {
+			names = append(names, c.Name)
+		}
+	}
+	return names
+}
+
+// firstOrEmpty kept for any other callers
 func firstOrEmpty(s []string) string {
 	if len(s) > 0 {
 		return s[0]
@@ -124,19 +222,11 @@ func firstOrEmpty(s []string) string {
 	return ""
 }
 
+// mapValues kept for any other callers
 func mapValues(m map[string]string) []string {
 	val := make([]string, 0, len(m))
-
 	for _, v := range m {
 		val = append(val, v)
 	}
 	return val
-}
-
-func currencyNames(m map[string]currencyType) []string {
-    names := make([]string, 0, len(m))
-    for _, n := range m {
-        names = append(names, n.Name)
-    }
-    return names
 }

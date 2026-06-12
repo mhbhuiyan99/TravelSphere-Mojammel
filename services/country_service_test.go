@@ -10,10 +10,21 @@ import (
 	"TravelSphere-Mojammel/utils"
 )
 
-// rawCountryJSON builds a minimal REST Countries API JSON response
+// v5MockResponse builds a properly wrapped v5 response for mock servers
+func v5MockResponse(countries []map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"data": map[string]interface{}{
+			"objects": countries,
+			"meta": map[string]interface{}{
+				"more": false,
+			},
+		},
+	}
+}
+
 func mockCountryHandler(countries []map[string]interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(countries)
+		json.NewEncoder(w).Encode(v5MockResponse(countries))
 	}
 }
 
@@ -27,9 +38,9 @@ func TestGetCountriesBySlugs(t *testing.T) {
 		{
 			name: "two matching slugs",
 			rawData: []map[string]interface{}{
-				{"name": map[string]string{"common": "France"}, "region": "Europe", "capital": []string{"Paris"}, "latlng": []float64{46.0, 2.0}},
-				{"name": map[string]string{"common": "Japan"}, "region": "Asia", "capital": []string{"Tokyo"}, "latlng": []float64{36.0, 138.0}},
-				{"name": map[string]string{"common": "Brazil"}, "region": "Americas", "capital": []string{"Brasilia"}, "latlng": []float64{-10.0, -51.0}},
+				{"names": map[string]string{"common": "France"}, "region": "Europe", "capitals": []map[string]string{{"name": "Paris"}}, "coordinates": map[string]float64{"lat": 46.0, "lng": 2.0}},
+				{"names": map[string]string{"common": "Japan"}, "region": "Asia", "capitals": []map[string]string{{"name": "Tokyo"}}, "coordinates": map[string]float64{"lat": 36.0, "lng": 138.0}},
+				{"names": map[string]string{"common": "Brazil"}, "region": "Americas", "capitals": []map[string]string{{"name": "Brasilia"}}, "coordinates": map[string]float64{"lat": -10.0, "lng": -51.0}},
 			},
 			slugs:     []string{"france", "japan"},
 			wantCount: 2,
@@ -37,7 +48,7 @@ func TestGetCountriesBySlugs(t *testing.T) {
 		{
 			name: "no matching slugs returns empty",
 			rawData: []map[string]interface{}{
-				{"name": map[string]string{"common": "France"}, "latlng": []float64{46.0, 2.0}},
+				{"names": map[string]string{"common": "France"}, "coordinates": map[string]float64{"lat": 46.0, "lng": 2.0}},
 			},
 			slugs:     []string{"zzz-unknown"},
 			wantCount: 0,
@@ -45,9 +56,9 @@ func TestGetCountriesBySlugs(t *testing.T) {
 		{
 			name: "all slugs match",
 			rawData: []map[string]interface{}{
-				{"name": map[string]string{"common": "France"}, "latlng": []float64{46.0, 2.0}},
-				{"name": map[string]string{"common": "Japan"}, "latlng": []float64{36.0, 138.0}},
-				{"name": map[string]string{"common": "Brazil"}, "latlng": []float64{-10.0, -51.0}},
+				{"names": map[string]string{"common": "France"}, "coordinates": map[string]float64{"lat": 46.0, "lng": 2.0}},
+				{"names": map[string]string{"common": "Japan"}, "coordinates": map[string]float64{"lat": 36.0, "lng": 138.0}},
+				{"names": map[string]string{"common": "Brazil"}, "coordinates": map[string]float64{"lat": -10.0, "lng": -51.0}},
 			},
 			slugs:     []string{"france", "japan", "brazil"},
 			wantCount: 3,
@@ -81,7 +92,7 @@ func TestGetCountryBySlug(t *testing.T) {
 		{
 			name: "existing slug returns country",
 			rawData: []map[string]interface{}{
-				{"name": map[string]string{"common": "Bangladesh"}, "capital": []string{"Dhaka"}, "latlng": []float64{24.0, 90.0}},
+				{"names": map[string]string{"common": "Bangladesh"}, "capitals": []map[string]string{{"name": "Dhaka"}}, "coordinates": map[string]float64{"lat": 24.0, "lng": 90.0}},
 			},
 			slug:      "bangladesh",
 			wantFound: true,
@@ -90,7 +101,7 @@ func TestGetCountryBySlug(t *testing.T) {
 		{
 			name: "unknown slug returns nil",
 			rawData: []map[string]interface{}{
-				{"name": map[string]string{"common": "Bangladesh"}, "latlng": []float64{24.0, 90.0}},
+				{"names": map[string]string{"common": "Bangladesh"}, "coordinates": map[string]float64{"lat": 24.0, "lng": 90.0}},
 			},
 			slug:      "zzz-unknown",
 			wantFound: false,
