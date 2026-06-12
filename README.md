@@ -263,8 +263,9 @@ as the same name is used on re-login.
 All config lives in `conf/app.conf`. See `conf/app.conf.example` for the full template.
 
 | Key | Description | Default |
-|---|---|---|
-| `opentripmap_api_key` | OpenTripMap API key (required) | — |
-| `restcountries_base_url` | REST Countries base URL | `https://restcountries.com/v3.1` |
-| `opentripmap_base_url` | OpenTripMap base URL | `https://api.opentripmap.com/0.1/en/places` |
-| `wishlist_store_path` | Path to wishlist JSON file | `data/wishlist.json` |
+|------|-------------|----------|
+| `restcountries_api_key` | REST Countries v5 API key (**required**) | — |
+| `restcountries_base_url` | REST Countries API base URL | `https://api.restcountries.com/countries/v5` |
+| `opentripmap_api_key` | OpenTripMap API key (**required**) | — |
+| `opentripmap_base_url` | OpenTripMap API base URL | `https://api.opentripmap.com/0.1/en/places` |
+| `wishlist_store_path` | Path to the wishlist JSON storage file | `data/wishlist.json` |

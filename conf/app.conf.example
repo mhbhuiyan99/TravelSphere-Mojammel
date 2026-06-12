@@ -5,6 +5,8 @@ runmode = dev
 sessionon = true
 sessionname = travelsphere_session
 
+copyrequestbody = true
+
 opentripmap_api_key = YOUR_KEY_HERE
 restcountries_api_key =YOUR_KEY_HERE
 
